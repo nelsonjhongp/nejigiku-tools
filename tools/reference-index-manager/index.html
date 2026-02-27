@@ -1,0 +1,858 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Reference Index Manager</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="../../assets/css/theme.css" />
+
+  <style>
+    :root {
+      --rim-border: rgba(17, 24, 39, 0.18);
+      --rim-muted: #4b5563;
+      --rim-input: #ffffff;
+      --rim-head: #f3f4f6;
+      --rim-hover: #f9fafb;
+      --rim-primary: #2563eb;
+      --rim-ok: #0f766e;
+      --rim-danger: #b91c1c;
+      --rim-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .theme-dark {
+      --rim-border: rgba(230, 238, 248, 0.18);
+      --rim-muted: #b8c4d6;
+      --rim-input: rgba(15, 23, 36, 0.9);
+      --rim-head: rgba(255, 255, 255, 0.06);
+      --rim-hover: rgba(255, 255, 255, 0.03);
+      --rim-primary: #6ea8fe;
+      --rim-ok: #41d18a;
+      --rim-danger: #ff6b6b;
+      --rim-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", sans-serif;
+      background:
+        radial-gradient(1000px 550px at 15% -8%, color-mix(in srgb, var(--rim-primary) 18%, transparent), transparent 65%),
+        var(--bg);
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-attachment: fixed;
+      color: var(--text);
+    }
+
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 16px; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--rim-border);
+      backdrop-filter: blur(8px);
+      background: color-mix(in srgb, var(--bg) 90%, transparent);
+    }
+
+    .topbar-row,
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .spacer { flex: 1; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--rim-border);
+      border-radius: 14px;
+      box-shadow: var(--rim-shadow);
+      overflow: hidden;
+    }
+
+    .toolbar { padding: 12px; }
+    .toolbar + .toolbar { border-top: 1px solid var(--rim-border); }
+
+    h1 { margin: 0; font-size: 20px; }
+    .sub { margin: 4px 0 0; color: var(--rim-muted); font-size: 12px; }
+
+    .pill,
+    .badge {
+      border: 1px solid var(--rim-border);
+      background: var(--rim-input);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--rim-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn,
+    input,
+    textarea {
+      border: 1px solid var(--rim-border);
+      background: var(--rim-input);
+      color: var(--text);
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .btn {
+      cursor: pointer;
+      padding: 8px 10px;
+    }
+
+    .btn.primary { border-color: color-mix(in srgb, var(--rim-primary) 60%, transparent); }
+    .btn.ok { border-color: color-mix(in srgb, var(--rim-ok) 60%, transparent); }
+    .btn.danger { border-color: color-mix(in srgb, var(--rim-danger) 60%, transparent); }
+
+    input,
+    textarea {
+      padding: 8px 10px;
+      outline: none;
+    }
+
+    input[type="search"] { width: min(560px, 100%); }
+    textarea { width: 100%; min-height: 88px; resize: vertical; }
+
+    .table-wrap {
+      overflow: auto;
+      border-top: 1px solid var(--rim-border);
+    }
+
+    table {
+      width: 100%;
+      min-width: 1060px;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid color-mix(in srgb, var(--rim-border) 70%, transparent);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--rim-head);
+      color: var(--rim-muted);
+    }
+
+    tbody tr:hover { background: var(--rim-hover); }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .actions .btn { padding: 6px 8px; font-size: 12px; }
+    .hidden-col { display: none; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 16px;
+      z-index: 40;
+    }
+
+    .overlay.show { display: flex; }
+
+    .modal {
+      width: min(980px, 96vw);
+      background: var(--card);
+      border: 1px solid var(--rim-border);
+      border-radius: 14px;
+      box-shadow: var(--rim-shadow);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      padding: 12px;
+      border-bottom: 1px solid var(--rim-border);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .modal-body { padding: 12px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .full { grid-column: 1 / -1; }
+    .help { font-size: 12px; color: var(--rim-muted); margin: 0 0 4px; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      background: var(--card);
+      border: 1px solid var(--rim-border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      display: none;
+      z-index: 60;
+    }
+
+    .toast.show { display: block; }
+
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+      .wrap { padding: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <div class="topbar-row">
+        <button id="backBtn" class="btn">Volver</button>
+        <button id="themeBtn" class="btn">Tema</button>
+        <span class="badge" id="countBadge">0 filas</span>
+        <div class="spacer"></div>
+        <span class="pill">Atajos: Alt+N nueva, Esc cerrar</span>
+      </div>
+      <div style="margin-top: 10px;">
+        <h1>Reference Index Manager</h1>
+        <p class="sub">Importa Excel/TSV, administra referencias, renumera y exporta.</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="toolbar">
+        <div class="row">
+          <input id="search" type="search" placeholder="Buscar por ref, autores, titulo, DOI, ano, fuente..." />
+          <div class="spacer"></div>
+
+          <label class="btn" style="display:inline-flex;gap:8px;align-items:center;">
+            <span>Importar Excel</span>
+            <input id="fileXlsx" type="file" accept=".xlsx,.xls" style="display:none;" />
+          </label>
+
+          <button id="openTSV" class="btn">Pegar TSV</button>
+          <button id="exportTSV" class="btn ok">Exportar TSV</button>
+          <button id="exportXLSX" class="btn ok">Exportar Excel</button>
+          <button id="clearAll" class="btn danger">Limpiar</button>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div id="colToggles" class="pill" title="Ocultar/mostrar columnas"></div>
+          <div class="spacer"></div>
+          <button id="openNew" class="btn primary">Insertar referencia</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr id="theadRow"></tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="tsvOverlay" class="overlay" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-head">
+        <strong>Pegar TSV</strong>
+        <div class="row">
+          <button id="importTSVBtn" class="btn ok">Importar</button>
+          <button id="closeTSV" class="btn">Cerrar</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p class="help">Formato esperado: Ref[TAB]DOI[TAB]Title[TAB]Authors[TAB]Year[TAB]Source[TAB]URL[TAB]Notes</p>
+        <textarea id="tsvBox" placeholder="1\t10.1000/xyz123\tTitulo\tAutor A; Autor B\t2025"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div id="editOverlay" class="overlay" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-head">
+        <strong id="editTitle">Insertar referencia</strong>
+        <div class="row">
+          <button id="saveRowBtn" class="btn ok">Guardar</button>
+          <button id="closeEdit" class="btn">Cerrar</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="grid">
+          <div>
+            <p class="help">Insertar en indice (1..N+1)</p>
+            <input id="insIndex" type="number" min="1" step="1" value="1" />
+          </div>
+          <div>
+            <p class="help">Ano</p>
+            <input id="year" type="number" min="1900" max="2100" step="1" placeholder="2025" />
+          </div>
+          <div class="full">
+            <p class="help">Titulo</p>
+            <input id="title" type="text" placeholder="Titulo del articulo" />
+          </div>
+          <div class="full">
+            <p class="help">Autores</p>
+            <input id="authors" type="text" placeholder="Autor 1, Autor 2" />
+          </div>
+          <div>
+            <p class="help">DOI</p>
+            <input id="doi" type="text" placeholder="10.xxxx/xxxxx" />
+          </div>
+          <div>
+            <p class="help">Fuente</p>
+            <input id="source" type="text" placeholder="Revista / conferencia" />
+          </div>
+          <div class="full">
+            <p class="help">URL (opcional)</p>
+            <input id="url" type="text" placeholder="https://..." />
+          </div>
+          <div class="full">
+            <p class="help">Notas (opcional)</p>
+            <input id="notes" type="text" placeholder="tags, observaciones" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button id="copyEntry" class="btn primary">Copiar entrada</button>
+          <button id="copyTitle" class="btn">Copiar titulo</button>
+          <button id="copyDOI" class="btn">Copiar DOI</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    let rows = [];
+    let editMode = "new";
+    let editRowId = null;
+
+    const STORAGE = {
+      rows: "rim_rows_v1",
+      hidden: "rim_hidden_cols_v1",
+      widths: "rim_col_widths_v1",
+      theme: "nejigiku_theme"
+    };
+
+    const COLS = [
+      { key: "ref", label: "Ref", width: 80, mono: true, canHide: false },
+      { key: "doi", label: "DOI", width: 250, mono: true, canHide: true },
+      { key: "title", label: "Titulo", width: 500, mono: false, canHide: true },
+      { key: "authors", label: "Autores", width: 340, mono: false, canHide: true },
+      { key: "source", label: "Fuente", width: 240, mono: false, canHide: true },
+      { key: "year", label: "Ano", width: 90, mono: true, canHide: true },
+      { key: "actions", label: "Acciones", width: 320, mono: false, canHide: false }
+    ];
+
+    const hiddenCols = new Set(JSON.parse(localStorage.getItem(STORAGE.hidden) || "[]"));
+    const colWidths = JSON.parse(localStorage.getItem(STORAGE.widths) || "{}");
+
+    const $ = (id) => document.getElementById(id);
+
+    function normalize(v) {
+      return (v ?? "").toString().toLowerCase().trim();
+    }
+
+    function toast(msg) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toast._id);
+      toast._id = setTimeout(() => t.classList.remove("show"), 1500);
+    }
+
+    function saveRows() {
+      localStorage.setItem(STORAGE.rows, JSON.stringify(rows));
+      $("countBadge").textContent = rows.length + " filas";
+    }
+
+    function loadRows() {
+      try {
+        rows = JSON.parse(localStorage.getItem(STORAGE.rows) || "[]");
+        if (!Array.isArray(rows)) rows = [];
+      } catch {
+        rows = [];
+      }
+      recalcRefs();
+      saveRows();
+    }
+
+    function setTheme(name) {
+      const dark = name === "dark";
+      document.documentElement.classList.toggle("theme-dark", dark);
+      document.documentElement.classList.toggle("theme-light", !dark);
+      localStorage.setItem(STORAGE.theme, dark ? "dark" : "light");
+      $("themeBtn").textContent = dark ? "Tema: dark" : "Tema: light";
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem(STORAGE.theme) || "light";
+      setTheme(saved === "dark" ? "dark" : "light");
+    }
+
+    function showOverlay(id, show) {
+      const el = $(id);
+      if (show) {
+        el.classList.add("show");
+        el.setAttribute("aria-hidden", "false");
+      } else {
+        el.classList.remove("show");
+        el.setAttribute("aria-hidden", "true");
+      }
+    }
+
+    function recalcRefs() {
+      rows = rows.map((r, i) => ({ ...r, ref: i + 1 }));
+    }
+
+    function rowToEntry(r) {
+      const out = ["[" + r.ref + "]"];
+      if (r.authors) out.push(r.authors + ",");
+      if (r.title) out.push('"' + r.title + '",');
+      if (r.source) out.push(r.source + ",");
+      if (r.year) out.push(r.year + ",");
+      if (r.doi) out.push("doi: " + r.doi + ".");
+      else if (r.url) out.push(r.url);
+      return out.join(" ").replace(/\s+/g, " ").trim();
+    }
+
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      toast("Copiado");
+    }
+
+    function openEdit(mode, ref) {
+      editMode = mode;
+      if (mode === "new") {
+        editRowId = null;
+        $("editTitle").textContent = "Insertar referencia";
+        $("insIndex").value = Math.max(1, rows.length + 1);
+        $("year").value = "";
+        $("title").value = "";
+        $("authors").value = "";
+        $("doi").value = "";
+        $("source").value = "";
+        $("url").value = "";
+        $("notes").value = "";
+      } else {
+        const idx = rows.findIndex((r) => r.ref === ref);
+        if (idx < 0) return;
+        editRowId = idx;
+        const r = rows[idx];
+        $("editTitle").textContent = "Editar referencia #" + r.ref;
+        $("insIndex").value = r.ref;
+        $("year").value = r.year ?? "";
+        $("title").value = r.title ?? "";
+        $("authors").value = r.authors ?? "";
+        $("doi").value = r.doi ?? "";
+        $("source").value = r.source ?? "";
+        $("url").value = r.url ?? "";
+        $("notes").value = r.notes ?? "";
+      }
+      showOverlay("editOverlay", true);
+      $("title").focus();
+    }
+
+    function saveRow() {
+      const pos = Number.parseInt($("insIndex").value || "1", 10);
+      const y = $("year").value ? Number.parseInt($("year").value, 10) : null;
+
+      const row = {
+        ref: 0,
+        title: $("title").value.trim(),
+        authors: $("authors").value.trim(),
+        doi: $("doi").value.trim(),
+        source: $("source").value.trim(),
+        year: Number.isFinite(y) ? y : null,
+        url: $("url").value.trim(),
+        notes: $("notes").value.trim()
+      };
+
+      if (!row.title && !row.doi) {
+        toast("Agrega al menos titulo o DOI");
+        return;
+      }
+
+      if (editMode === "new") {
+        rows.splice(Math.max(0, Math.min(rows.length, pos - 1)), 0, row);
+      } else {
+        if (editRowId == null) return;
+        rows.splice(editRowId, 1);
+        rows.splice(Math.max(0, Math.min(rows.length, pos - 1)), 0, row);
+      }
+
+      recalcRefs();
+      saveRows();
+      render();
+      showOverlay("editOverlay", false);
+      toast("Guardado");
+    }
+
+    function deleteRef(ref) {
+      const idx = rows.findIndex((r) => r.ref === ref);
+      if (idx < 0) return;
+      rows.splice(idx, 1);
+      recalcRefs();
+      saveRows();
+      render();
+      toast("Eliminado #" + ref);
+    }
+
+    function moveRef(ref, delta) {
+      const idx = rows.findIndex((r) => r.ref === ref);
+      if (idx < 0) return;
+      const next = idx + delta;
+      if (next < 0 || next >= rows.length) return;
+      const [row] = rows.splice(idx, 1);
+      rows.splice(next, 0, row);
+      recalcRefs();
+      saveRows();
+      render();
+    }
+
+    function parseTSV(text) {
+      const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
+      const out = [];
+      for (const line of lines) {
+        const p = line.split("\t");
+        const yearNum = p[4] ? Number.parseInt(p[4].trim(), 10) : null;
+        const row = {
+          ref: 0,
+          doi: (p[1] || "").trim(),
+          title: (p[2] || "").trim(),
+          authors: (p[3] || "").trim(),
+          year: Number.isFinite(yearNum) ? yearNum : null,
+          source: (p[5] || "").trim(),
+          url: (p[6] || "").trim(),
+          notes: (p[7] || "").trim()
+        };
+        if (row.doi || row.title || row.authors || row.source) out.push(row);
+      }
+      return out;
+    }
+
+    function importTSV() {
+      const parsed = parseTSV($("tsvBox").value);
+      if (!parsed.length) {
+        toast("No se detectaron filas TSV");
+        return;
+      }
+      rows = parsed;
+      recalcRefs();
+      saveRows();
+      render();
+      showOverlay("tsvOverlay", false);
+      toast("TSV importado");
+    }
+
+    function filteredRows() {
+      const q = normalize($("search").value);
+      if (!q) return rows;
+      return rows.filter((r) => {
+        const hay = normalize([r.ref, r.doi, r.title, r.authors, r.source, r.year, r.url, r.notes].join(" "));
+        return hay.includes(q);
+      });
+    }
+
+    function exportTSV() {
+      const header = ["Ref", "DOI", "Title", "Authors", "Year", "Source", "URL", "Notes"].join("\t");
+      const body = filteredRows().map((r) => [r.ref, r.doi || "", r.title || "", r.authors || "", r.year || "", r.source || "", r.url || "", r.notes || ""].join("\t")).join("\n");
+      copyToClipboard(header + "\n" + body);
+    }
+
+    function excelToRows(workbook) {
+      const sheetName = workbook.SheetNames.includes("References") ? "References" : workbook.SheetNames[0];
+      const ws = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+      const pick = (obj, keys) => {
+        for (const k of keys) if (Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
+        return "";
+      };
+
+      return json.map((obj) => {
+        const yearRaw = pick(obj, ["Year", "Ano", "Año"]);
+        const y = yearRaw ? Number.parseInt(yearRaw, 10) : null;
+        return {
+          ref: 0,
+          doi: String(pick(obj, ["DOI", "doi"]) || "").trim(),
+          title: String(pick(obj, ["Title", "Titulo", "Título"]) || "").trim(),
+          authors: String(pick(obj, ["Authors", "Autores", "Author"]) || "").trim(),
+          year: Number.isFinite(y) ? y : null,
+          source: String(pick(obj, ["Source", "Fuente", "Journal", "Revista"]) || "").trim(),
+          url: String(pick(obj, ["URL", "Url", "Link"]) || "").trim(),
+          notes: String(pick(obj, ["Notes", "Notas", "Tags"]) || "").trim()
+        };
+      }).filter((r) => r.doi || r.title || r.authors || r.source);
+    }
+
+    function importExcelFile(file) {
+      if (typeof XLSX === "undefined") {
+        toast("XLSX no disponible. Usa TSV.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+          rows = excelToRows(wb);
+          recalcRefs();
+          saveRows();
+          render();
+          toast("Excel importado");
+        } catch {
+          toast("Error importando Excel");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function exportExcel() {
+      if (typeof XLSX === "undefined") {
+        toast("XLSX no disponible. Usa TSV.");
+        return;
+      }
+      const data = rows.map((r) => ({
+        Ref: r.ref,
+        DOI: r.doi || "",
+        Title: r.title || "",
+        Authors: r.authors || "",
+        Year: r.year || "",
+        Source: r.source || "",
+        URL: r.url || "",
+        Notes: r.notes || ""
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "References");
+      XLSX.writeFile(wb, "references_index.xlsx");
+    }
+
+    function buildThead() {
+      const tr = $("theadRow");
+      tr.innerHTML = "";
+      for (const col of COLS) {
+        const th = document.createElement("th");
+        th.textContent = col.label;
+        if (hiddenCols.has(col.key)) th.classList.add("hidden-col");
+        const w = colWidths[col.key] || col.width;
+        th.style.width = w + "px";
+        th.style.minWidth = w + "px";
+        th.style.maxWidth = w + "px";
+        tr.appendChild(th);
+      }
+    }
+
+    function buildColToggles() {
+      const wrap = $("colToggles");
+      wrap.innerHTML = "";
+      COLS.filter((c) => c.canHide).forEach((c) => {
+        const label = document.createElement("label");
+        label.style.display = "inline-flex";
+        label.style.alignItems = "center";
+        label.style.gap = "6px";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !hiddenCols.has(c.key);
+        cb.addEventListener("change", () => {
+          if (cb.checked) hiddenCols.delete(c.key);
+          else hiddenCols.add(c.key);
+          localStorage.setItem(STORAGE.hidden, JSON.stringify(Array.from(hiddenCols)));
+          render();
+        });
+
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(c.label));
+        wrap.appendChild(label);
+      });
+    }
+
+    function render() {
+      buildThead();
+      buildColToggles();
+      const tbody = $("tbody");
+      tbody.innerHTML = "";
+
+      for (const r of filteredRows()) {
+        const tr = document.createElement("tr");
+
+        const makeTd = (key, value, mono) => {
+          const td = document.createElement("td");
+          td.textContent = value ?? "";
+          td.title = String(value ?? "");
+          if (mono) td.classList.add("mono");
+          if (hiddenCols.has(key)) td.classList.add("hidden-col");
+          const w = colWidths[key] || (COLS.find((c) => c.key === key)?.width || 150);
+          td.style.width = w + "px";
+          td.style.minWidth = w + "px";
+          td.style.maxWidth = w + "px";
+          return td;
+        };
+
+        tr.appendChild(makeTd("ref", r.ref, true));
+        tr.appendChild(makeTd("doi", r.doi, true));
+        tr.appendChild(makeTd("title", r.title, false));
+        tr.appendChild(makeTd("authors", r.authors, false));
+        tr.appendChild(makeTd("source", r.source, false));
+        tr.appendChild(makeTd("year", r.year ?? "", true));
+
+        const tdActions = document.createElement("td");
+        tdActions.className = "actions";
+        const w = colWidths.actions || COLS.find((c) => c.key === "actions").width;
+        tdActions.style.width = w + "px";
+        tdActions.style.minWidth = w + "px";
+        tdActions.style.maxWidth = w + "px";
+
+        const mkBtn = (label, cls, fn) => {
+          const b = document.createElement("button");
+          b.className = "btn " + (cls || "");
+          b.textContent = label;
+          b.addEventListener("click", (e) => {
+            e.stopPropagation();
+            fn();
+          });
+          return b;
+        };
+
+        tdActions.appendChild(mkBtn("Copiar", "primary", () => copyToClipboard(rowToEntry(r))));
+        tdActions.appendChild(mkBtn("Titulo", "", () => copyToClipboard(r.title || "")));
+        tdActions.appendChild(mkBtn("DOI", "", () => copyToClipboard(r.doi || "")));
+        tdActions.appendChild(mkBtn("Editar", "", () => openEdit("edit", r.ref)));
+        tdActions.appendChild(mkBtn("Subir", "", () => moveRef(r.ref, -1)));
+        tdActions.appendChild(mkBtn("Bajar", "", () => moveRef(r.ref, 1)));
+        tdActions.appendChild(mkBtn("Eliminar", "danger", () => deleteRef(r.ref)));
+
+        if (hiddenCols.has("actions")) tdActions.classList.add("hidden-col");
+
+        tr.appendChild(tdActions);
+        tr.addEventListener("dblclick", () => openEdit("edit", r.ref));
+        tbody.appendChild(tr);
+      }
+
+      $("countBadge").textContent = rows.length + " filas";
+    }
+
+    function previewRowFromForm() {
+      const year = $("year").value ? Number.parseInt($("year").value, 10) : null;
+      return {
+        ref: Number.parseInt($("insIndex").value || "1", 10),
+        title: $("title").value.trim(),
+        authors: $("authors").value.trim(),
+        doi: $("doi").value.trim(),
+        source: $("source").value.trim(),
+        year: Number.isFinite(year) ? year : null,
+        url: $("url").value.trim(),
+        notes: $("notes").value.trim()
+      };
+    }
+
+    function initNavigation() {
+      const inTools = location.pathname.includes("/tools/") || location.pathname.includes("\\tools\\");
+      const homePath = inTools ? "../../index.html" : "index.html";
+      $("backBtn").addEventListener("click", () => {
+        window.location.href = homePath;
+      });
+    }
+
+    $("search").addEventListener("input", render);
+    $("openTSV").addEventListener("click", () => showOverlay("tsvOverlay", true));
+    $("closeTSV").addEventListener("click", () => showOverlay("tsvOverlay", false));
+    $("importTSVBtn").addEventListener("click", importTSV);
+
+    $("openNew").addEventListener("click", () => openEdit("new"));
+    $("closeEdit").addEventListener("click", () => showOverlay("editOverlay", false));
+    $("saveRowBtn").addEventListener("click", saveRow);
+
+    $("copyEntry").addEventListener("click", () => copyToClipboard(rowToEntry(previewRowFromForm())));
+    $("copyTitle").addEventListener("click", () => copyToClipboard(previewRowFromForm().title || ""));
+    $("copyDOI").addEventListener("click", () => copyToClipboard(previewRowFromForm().doi || ""));
+
+    $("clearAll").addEventListener("click", () => {
+      rows = [];
+      saveRows();
+      render();
+      toast("Tabla vaciada");
+    });
+
+    $("exportTSV").addEventListener("click", exportTSV);
+    $("exportXLSX").addEventListener("click", exportExcel);
+
+    $("fileXlsx").addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (file) importExcelFile(file);
+      e.target.value = "";
+    });
+
+    $("themeBtn").addEventListener("click", () => {
+      const cur = localStorage.getItem(STORAGE.theme) || "light";
+      setTheme(cur === "dark" ? "light" : "dark");
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        showOverlay("tsvOverlay", false);
+        showOverlay("editOverlay", false);
+      }
+      if (e.altKey && (e.key === "n" || e.key === "N")) {
+        e.preventDefault();
+        openEdit("new");
+      }
+    });
+
+    ["tsvOverlay", "editOverlay"].forEach((id) => {
+      $(id).addEventListener("click", (e) => {
+        if (e.target === $(id)) showOverlay(id, false);
+      });
+    });
+
+    initTheme();
+    initNavigation();
+    loadRows();
+    render();
+
+    if (typeof XLSX === "undefined") {
+      toast("XLSX no disponible. Usa TSV para importar/exportar.");
+    }
+  </script>
+</body>
+</html>
