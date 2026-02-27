@@ -2,6 +2,17 @@
 
 Panel web de herramientas internas. Actualmente incluye **Reference Index Manager** (gestor de referencias con importación/exportación Excel/TSV).
 
+[![Estado](https://img.shields.io/badge/estado-activo-16a34a)](https://github.com/nelsonjhongp/nejigiku-tools)
+[![Stack](https://img.shields.io/badge/stack-HTML%20%7C%20CSS%20%7C%20JS-2563eb)](https://github.com/nelsonjhongp/nejigiku-tools)
+[![Último commit](https://img.shields.io/github/last-commit/nelsonjhongp/nejigiku-tools)](https://github.com/nelsonjhongp/nejigiku-tools/commits/main)
+[![Issues](https://img.shields.io/github/issues/nelsonjhongp/nejigiku-tools)](https://github.com/nelsonjhongp/nejigiku-tools/issues)
+
+## Vista rápida
+
+- Catálogo visual de herramientas con placeholders listos para crecer
+- Tema claro/oscuro compartido entre panel y herramientas
+- Reference Index Manager con import/export y edición rápida de referencias
+
 ## Estado actual
 
 - UI con tema claro/oscuro global (`nejigiku_theme`)
