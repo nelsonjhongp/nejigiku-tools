@@ -26,6 +26,62 @@ body{background:var(--bg);color:var(--text)}
   color:var(--text);
   border:1px solid var(--border);
 }
+.tool-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:16px;
+}
+.tool-tile{
+  min-height: 280px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.tool-media{
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:12px;
+  object-fit:cover;
+  border:1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 75%, #9ca3af 25%);
+}
+.tool-link{
+  display:block;
+  color:inherit;
+  text-decoration:none;
+}
+.tool-link[title="Ingresar"]{
+  cursor:pointer;
+}
+.tool-title-link{
+  font-size:1.25rem;
+  font-weight:600;
+  line-height:1.25;
+  transition: color .18s ease;
+}
+.tool-title-link:hover,
+.tool-title-link:focus-visible{
+  color: color-mix(in srgb, var(--text) 65%, #3b82f6 35%);
+}
+.tool-link .tool-media{
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.tool-link:hover .tool-media,
+.tool-link:focus-visible .tool-media{
+  border-color: color-mix(in srgb, var(--text) 30%, #3b82f6 70%);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--text) 14%, transparent);
+  transform: translateY(-1px);
+}
+.tool-placeholder{
+  opacity:.72;
+  filter:saturate(.2);
+}
+.tool-placeholder .tool-media{
+  background: color-mix(in srgb, var(--card) 35%, #9ca3af 65%);
+}
+@media (max-width: 900px){
+  .tool-grid{grid-template-columns:1fr}
+}
 
 /* Small helper to make modal scroll nice */
 #panel-content img{max-width:100%;height:auto}

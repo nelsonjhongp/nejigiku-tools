@@ -155,6 +155,38 @@
       color: var(--rim-muted);
     }
 
+    th {
+      position: relative;
+      user-select: none;
+    }
+
+    .th-label {
+      display: inline-block;
+      padding-right: 10px;
+    }
+
+    .col-resizer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 10px;
+      height: 100%;
+      cursor: col-resize;
+      touch-action: none;
+    }
+
+    .col-resizer::after {
+      content: "";
+      position: absolute;
+      right: 4px;
+      top: 20%;
+      width: 2px;
+      height: 60%;
+      border-radius: 2px;
+      background: color-mix(in srgb, var(--rim-muted) 45%, transparent);
+      opacity: 0.7;
+    }
+
     tbody tr:hover { background: var(--rim-hover); }
 
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
@@ -270,7 +302,7 @@
       </div>
 
       <div class="table-wrap">
-        <table>
+        <table id="tbl">
           <thead>
             <tr id="theadRow"></tr>
           </thead>
@@ -376,6 +408,7 @@
 
     const hiddenCols = new Set(JSON.parse(localStorage.getItem(STORAGE.hidden) || "[]"));
     const colWidths = JSON.parse(localStorage.getItem(STORAGE.widths) || "{}");
+    let activeResize = null;
 
     const $ = (id) => document.getElementById(id);
 
@@ -389,6 +422,10 @@
       t.classList.add("show");
       clearTimeout(toast._id);
       toast._id = setTimeout(() => t.classList.remove("show"), 1500);
+    }
+
+    function saveColWidths() {
+      localStorage.setItem(STORAGE.widths, JSON.stringify(colWidths));
     }
 
     function saveRows() {
@@ -672,7 +709,23 @@
       tr.innerHTML = "";
       for (const col of COLS) {
         const th = document.createElement("th");
-        th.textContent = col.label;
+        th.dataset.col = col.key;
+
+        const label = document.createElement("span");
+        label.className = "th-label";
+        label.textContent = col.label;
+        th.appendChild(label);
+
+        const resizer = document.createElement("span");
+        resizer.className = "col-resizer";
+        resizer.title = "Arrastra para ajustar ancho";
+        resizer.addEventListener("pointerdown", (e) => startResize(e, col.key));
+        resizer.addEventListener("dblclick", (e) => {
+          e.preventDefault();
+          resetColWidth(col.key);
+        });
+        th.appendChild(resizer);
+
         if (hiddenCols.has(col.key)) th.classList.add("hidden-col");
         const w = colWidths[col.key] || col.width;
         th.style.width = w + "px";
@@ -680,6 +733,65 @@
         th.style.maxWidth = w + "px";
         tr.appendChild(th);
       }
+      applyTableMinWidth();
+    }
+
+    function applyWidthToColumn(key, widthPx) {
+      const width = Math.max(70, Math.round(widthPx));
+      colWidths[key] = width;
+      const header = document.querySelector(`th[data-col="${key}"]`);
+      if (header) {
+        header.style.width = width + "px";
+        header.style.minWidth = width + "px";
+        header.style.maxWidth = width + "px";
+      }
+      document.querySelectorAll(`td[data-col="${key}"]`).forEach((td) => {
+        td.style.width = width + "px";
+        td.style.minWidth = width + "px";
+        td.style.maxWidth = width + "px";
+      });
+      applyTableMinWidth();
+    }
+
+    function resetColWidth(key) {
+      delete colWidths[key];
+      saveColWidths();
+      render();
+      toast("Ancho de columna restablecido");
+    }
+
+    function startResize(event, key) {
+      if (hiddenCols.has(key)) return;
+      const header = document.querySelector(`th[data-col="${key}"]`);
+      if (!header) return;
+      const startX = event.clientX;
+      const startWidth = header.getBoundingClientRect().width;
+      activeResize = { key, startX, startWidth };
+      window.addEventListener("pointermove", onResizeMove);
+      window.addEventListener("pointerup", stopResize);
+    }
+
+    function onResizeMove(event) {
+      if (!activeResize) return;
+      const delta = event.clientX - activeResize.startX;
+      applyWidthToColumn(activeResize.key, activeResize.startWidth + delta);
+    }
+
+    function stopResize() {
+      if (!activeResize) return;
+      activeResize = null;
+      saveColWidths();
+      window.removeEventListener("pointermove", onResizeMove);
+      window.removeEventListener("pointerup", stopResize);
+    }
+
+    function applyTableMinWidth() {
+      const table = $("tbl");
+      if (!table) return;
+      const total = COLS
+        .filter((c) => !hiddenCols.has(c.key))
+        .reduce((acc, c) => acc + (colWidths[c.key] || c.width), 0);
+      table.style.minWidth = Math.max(720, total) + "px";
     }
 
     function buildColToggles() {
@@ -718,6 +830,7 @@
 
         const makeTd = (key, value, mono) => {
           const td = document.createElement("td");
+          td.dataset.col = key;
           td.textContent = value ?? "";
           td.title = String(value ?? "");
           if (mono) td.classList.add("mono");
@@ -738,6 +851,7 @@
 
         const tdActions = document.createElement("td");
         tdActions.className = "actions";
+        tdActions.dataset.col = "actions";
         const w = colWidths.actions || COLS.find((c) => c.key === "actions").width;
         tdActions.style.width = w + "px";
         tdActions.style.minWidth = w + "px";
@@ -838,6 +952,8 @@
         openEdit("new");
       }
     });
+
+    window.addEventListener("resize", applyTableMinWidth);
 
     ["tsvOverlay", "editOverlay"].forEach((id) => {
       $(id).addEventListener("click", (e) => {
